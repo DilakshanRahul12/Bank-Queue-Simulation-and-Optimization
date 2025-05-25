@@ -1,0 +1,67 @@
+---
+title: "CW"
+author: "Dilakshan Rahul Surendrabose"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(simmer)
+library(simmer.plot)
+#library(gridExtra)
+```
+
+```{r}
+set.seed(-444)
+
+env <- simmer("Bank")
+
+customer <-  trajectory("customer") %>% 
+  seize("server", 1) %>% 
+  timeout(function() rexp(1, 1/5)) %>% # 5 minutes
+  release("server", 1)
+
+env %>% 
+  add_resource("server", 3) %>% 
+  add_generator("customer", customer, function() rexp(1, 1/6)) # 10 per hour
+
+env %>% run(until=480) # run simulation for 480 minutes
+```
+
+```{r}
+print(get_mon_resources(env))
+```
+
+```{r}
+p1 <- plot(get_mon_resources(env),
+           metric="usage",
+           items="server",
+           step=T)
+p1
+```
+
+```{r}
+arrival_data <- get_mon_arrivals(env)
+print(get_mon_arrivals(env))
+```
+
+```{r}
+# Calculate waiting time
+arrival_data$waiting_time <- arrival_data$end_time - arrival_data$start_time - arrival_data$activity_time
+arrival_data$waiting_time <- pmax(arrival_data$waiting_time, 0)
+print(arrival_data)
+p2 <- plot(get_mon_arrivals(env), 
+           metric="waiting_time")
+p2
+```
+
+```{r}
+mean(arrival_data$waiting_time)
+```
